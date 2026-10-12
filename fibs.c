@@ -15,6 +15,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 #include <fts.h>
 
 // err.h contains various nonstandard BSD extensions, but they are
