@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fts.h>
+#include <stdbool.h>
 
 // err.h contains various nonstandard BSD extensions, but they are
 // very handy.
@@ -18,6 +19,60 @@
 #include <pthread.h>
 
 #include "job_queue.h"
+
+struct worker_args {
+  struct job_queue *jq;
+  char const *needle;
+};
+
+int fauxgrep_file(char const *needle, char const *path) {
+  FILE *f = fopen(path, "r");
+
+  if (f == NULL) {
+    warn("failed to open %s", path);
+    return -1;
+  }
+
+  char *path = NULL;
+  size_t pathlen = 0;
+  int pathno = 1;
+
+  while (getpath(&path, &pathlen, f) != -1) {
+    if (strstr(path, needle) != NULL) {
+      printf("%s:%d: %s", path, pathno, path);
+    }
+
+    pathno++;
+  }
+
+  free(path);
+  fclose(f);
+
+  return 0;
+}
+
+void *worker(void *arg) {
+  struct worker_args *args = arg;
+  
+  struct job_queue *jq = args->jq;
+  char const *needle = args->needle;
+  
+  while (1) {
+    char *path;
+    
+    if (job_queue_pop(jq, (void**)&path) == 0) {
+      fauxgrep_file(needle, path);
+      free(path);
+    } else {
+      // If job_queue_pop() returned non-zero, that means the queue is
+      // being killed (or some other error occured).  In any case,
+      // that means it's time for this thread to die.
+      break;
+    }
+  }
+
+  return NULL;
+}
 
 int main(int argc, char * const *argv) {
   if (argc < 2) {
@@ -51,7 +106,18 @@ int main(int argc, char * const *argv) {
     paths = &argv[2];
   }
 
-  assert(0); // Initialise the job queue and some worker threads here.
+  // Create job queue.
+  struct job_queue jq;
+  job_queue_init(&jq, 64);
+  
+  // Start up the worker threads.
+  pthread_t *threads = calloc(num_threads, sizeof(pthread_t));
+  for (int i = 0; i < num_threads; i++) {
+    if (pthread_create(&threads[i], NULL, &worker, &jq) != 0) {
+      err(1, "pthread_create() failed");
+    }
+  }
+  
 
   // FTS_LOGICAL = follow symbolic links
   // FTS_NOCHDIR = do not change the working directory of the process
