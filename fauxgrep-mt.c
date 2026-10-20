@@ -20,10 +20,15 @@
 
 #include "job_queue.h"
 
+
+// Define the structure
 struct worker_args {
   struct job_queue *jq;
   char const *needle;
 };
+
+
+
 
 int fauxgrep_file(char const *needle, char const *path) {
   FILE *f = fopen(path, "r");
@@ -33,19 +38,19 @@ int fauxgrep_file(char const *needle, char const *path) {
     return -1;
   }
 
-  char *path = NULL;
-  size_t pathlen = 0;
-  int pathno = 1;
+  char *line = NULL;
+  size_t linelen = 0;
+  int lineno = 1;
 
-  while (getpath(&path, &pathlen, f) != -1) {
-    if (strstr(path, needle) != NULL) {
-      printf("%s:%d: %s", path, pathno, path);
+  while (getline(&line, &linelen, f) != -1) {
+    if (strstr(line, needle) != NULL) {
+      printf("%s:%d: %s", path, lineno, line);
     }
 
-    pathno++;
+    lineno++;
   }
 
-  free(path);
+  free(line);
   fclose(f);
 
   return 0;
@@ -109,14 +114,21 @@ int main(int argc, char * const *argv) {
   // Create job queue.
   struct job_queue jq;
   job_queue_init(&jq, 64);
-  
-  // Start up the worker threads.
-  pthread_t *threads = calloc(num_threads, sizeof(pthread_t));
-  for (int i = 0; i < num_threads; i++) {
-    if (pthread_create(&threads[i], NULL, &worker, &jq) != 0) {
-      err(1, "pthread_create() failed");
-    }
+
+  struct worker_args args = {
+  .jq = &jq,
+  .needle = needle
+};
+
+// Start up the worker threads.
+pthread_t *threads = calloc(num_threads, sizeof(pthread_t));
+
+for (int i = 0; i < num_threads; i++) {
+  if (pthread_create(&threads[i], NULL, worker, &args) != 0) {
+    err(1, "pthread_create() failed");
   }
+}
+
   
 
   // FTS_LOGICAL = follow symbolic links
@@ -138,7 +150,7 @@ int main(int argc, char * const *argv) {
     case FTS_D:
       break;
     case FTS_F:
-      assert(0); // Process the file p->fts_path, somehow.
+      fauxgrep_file(needle, p->fts_path);
       break;
     default:
       break;
@@ -147,7 +159,17 @@ int main(int argc, char * const *argv) {
 
   fts_close(ftsp);
 
-  assert(0); // Shut down the job queue and the worker threads here.
+  // Destroy the queue.
+  job_queue_destroy(&jq);
+
+  // Wait for all threads to finish.  This is important, at some may
+  // still be working on their job.
+  for (int i = 0; i < num_threads; i++) {
+    if (pthread_join(threads[i], NULL) != 0) {
+      err(1, "pthread_join() failed");
+    }
+  }
+  free(threads);
 
   return 0;
 }
