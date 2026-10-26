@@ -4,4 +4,7 @@ int main(void) {
   printf("også her!\n");
   printf("anden linje!\n");
   printf("weeeee!\n");
+  printf("også her!\n");
+  printf("anden linje!\n");
+  printf("weeeee!\n");
 }

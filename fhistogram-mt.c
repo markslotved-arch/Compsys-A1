@@ -1,4 +1,4 @@
-// Setting _DEFAULT_SOURCE is necessary to activate visibility of
+ // Setting _DEFAULT_SOURCE is necessary to activate visibility of
 // certain header file contents on GNU/Linux systems.
 #define _DEFAULT_SOURCE
 
@@ -49,15 +49,19 @@ int fhistogram(char const *path) {
     i++;
     update_histogram(local_histogram, c);
     if ((i % 100000) == 0) {
+      pthread_mutex_lock(&stdout_mutex);
       merge_histogram(local_histogram, global_histogram);
       print_histogram(global_histogram);
+      pthread_mutex_unlock(&stdout_mutex);
     }
   }
 
   fclose(f);
 
+  pthread_mutex_lock(&stdout_mutex);
   merge_histogram(local_histogram, global_histogram);
   print_histogram(global_histogram);
+  pthread_mutex_unlock(&stdout_mutex);
 
   return 0;
 }

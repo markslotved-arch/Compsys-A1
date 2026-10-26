@@ -46,9 +46,10 @@ int fauxgrep_file(char const *needle, char const *path) {
     if (strstr(line, needle) != NULL) {
       printf("%s:%d: %s", path, lineno, line);
     }
-
     lineno++;
+
   }
+
 
   free(line);
   fclose(f);
@@ -159,6 +160,15 @@ for (int i = 0; i < num_threads; i++) {
 
   fts_close(ftsp);
 
+  // Now read lines from stdin until EOF.
+  char *line = NULL;
+  ssize_t line_len;
+  size_t buf_len = 0;
+  while ((line_len = getline(&line, &buf_len, stdin)) != -1) {
+    job_queue_push(&jq, (void*)strdup(line));
+  }
+  free(line);
+  
   // Destroy the queue.
   job_queue_destroy(&jq);
 
@@ -170,6 +180,4 @@ for (int i = 0; i < num_threads; i++) {
     }
   }
   free(threads);
-
-  return 0;
 }

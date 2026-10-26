@@ -2,6 +2,7 @@
 #define JOB_QUEUE_H
 
 #include <pthread.h>
+#include <stdbool.h>
 
 struct job_queue {
   int head;
