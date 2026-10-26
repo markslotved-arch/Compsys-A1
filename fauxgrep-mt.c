@@ -27,7 +27,7 @@ struct worker_args {
   char const *needle;
 };
 
-
+pthread_mutex_t stdout_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
 int fauxgrep_file(char const *needle, char const *path) {
@@ -44,7 +44,9 @@ int fauxgrep_file(char const *needle, char const *path) {
 
   while (getline(&line, &linelen, f) != -1) {
     if (strstr(line, needle) != NULL) {
+      pthread_mutex_lock(&stdout_mutex);
       printf("%s:%d: %s", path, lineno, line);
+      pthread_mutex_unlock(&stdout_mutex);
     }
     lineno++;
 
@@ -150,24 +152,16 @@ for (int i = 0; i < num_threads; i++) {
     switch (p->fts_info) {
     case FTS_D:
       break;
-    case FTS_F:
-      fauxgrep_file(needle, p->fts_path);
+    case FTS_F: {
+      char *path = strdup(p->fts_path);
+      if (path == NULL) err(1, "strdup() failed");
+      if (job_queue_push(&jq, path) != 0) free(path);
       break;
+    }
     default:
       break;
     }
   }
-
-  fts_close(ftsp);
-
-  // Now read lines from stdin until EOF.
-  char *line = NULL;
-  ssize_t line_len;
-  size_t buf_len = 0;
-  while ((line_len = getline(&line, &buf_len, stdin)) != -1) {
-    job_queue_push(&jq, (void*)strdup(line));
-  }
-  free(line);
   
   // Destroy the queue.
   job_queue_destroy(&jq);
@@ -180,4 +174,7 @@ for (int i = 0; i < num_threads; i++) {
     }
   }
   free(threads);
+  fts_close(ftsp);
+
+  return 0;
 }
