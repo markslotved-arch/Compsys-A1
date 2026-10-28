@@ -10,10 +10,10 @@ Type './fibs' and hit enter
 Type the number you want to know the fibonnaci of, and then press enter.
 
 To run fauxgrep-mt:
-Type './fauxgrep-mt' proceeded by the word you want to search for, as well as the folder you want search. Then press enter.
+Type './fauxgrep-mt -n' proceeded by the amount of threads, the needle you want to search for, and the folder you want search. Then press enter.
 
 To run fhistogram-mt:
-Type './fhistogram-mt' proceeded by the desired folder. Then press enter.
+Type './fhistogram-mt -n' proceeded by the by the amount of threads and the desired folder. Then press enter.
 
 # How to test
 Type the following lines in the root directory. Each line should be followed by pressing enter.
