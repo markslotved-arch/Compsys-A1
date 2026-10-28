@@ -144,8 +144,12 @@ for (int i = 0; i < num_threads; i++) {
     switch (p->fts_info) {
     case FTS_D:
       break;
-    case FTS_F:
-      fhistogram(p->fts_path);
+    case FTS_F: {
+      char *path = strdup(p->fts_path);
+      if (path == NULL) err(1, "strdup() failed");
+      if (job_queue_push(&jq, path) != 0) free(path);
+      break;
+    }
       break;
     default:
       break;
